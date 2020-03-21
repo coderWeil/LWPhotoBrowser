@@ -2,7 +2,7 @@
 Pod::Spec.new do |s|
 
   s.name         = "LWPhotoBrowser"
-  s.version      = "0.0.1"
+  s.version      = "0.0.2"
   s.summary      = "图片浏览器"
   s.description  = "一款类似微信图片浏览的库"
 
