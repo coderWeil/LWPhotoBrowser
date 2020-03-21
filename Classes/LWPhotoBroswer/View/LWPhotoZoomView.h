@@ -13,4 +13,5 @@
 @property (nonatomic,strong) UIImageView *zoomImageView;
 @property (nonatomic,copy) void(^tapImageBlock)(void);
 - (void)adjustImageViewFrame;
+- (void) cancelTapEvent;
 @end

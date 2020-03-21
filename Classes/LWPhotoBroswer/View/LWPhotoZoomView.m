@@ -8,10 +8,6 @@
 
 #import "LWPhotoZoomView.h"
 
-@interface LWPhotoZoomView ()
-@property (nonatomic,assign) BOOL isSingleTap;
-@end
-
 @implementation LWPhotoZoomView
 - (instancetype)initWithFrame:(CGRect)frame {
     self  = [super initWithFrame:frame];
@@ -22,7 +18,6 @@
 }
 - (void)createZoomScrollView {
     self.delegate = self;
-    _isSingleTap = NO;
     self.minimumZoomScale = 1.0f;
     self.maximumZoomScale = 3.0f;
     _zoomImageView = [[UIImageView alloc] init];
@@ -52,15 +47,12 @@
     if (touch.tapCount == 1) {
         [self performSelector:@selector(singleTapClick) withObject:nil afterDelay:0.2];
     }else if (touch.tapCount == 2) {
-        [NSObject cancelPreviousPerformRequestsWithTarget:self];
-        if (!_isSingleTap) {
-            CGPoint touchPoint = [touch locationInView:_zoomImageView];
-            [self zoomDoubleTapWithPoint:touchPoint];
-        }
+        [self cancelTapEvent];
+        CGPoint touchPoint = [touch locationInView:_zoomImageView];
+        [self zoomDoubleTapWithPoint:touchPoint];
     }
 }
 - (void)singleTapClick {
-    _isSingleTap = YES;
     if (self.tapImageBlock) {
         self.tapImageBlock();
     }
@@ -94,5 +86,8 @@
         self.contentSize = imageSize;
         [self scrollViewDidZoom:self];
     }
+}
+- (void)cancelTapEvent {
+    [NSObject cancelPreviousPerformRequestsWithTarget:self];
 }
 @end

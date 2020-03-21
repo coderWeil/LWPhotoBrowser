@@ -15,9 +15,50 @@
 @property (nonatomic,strong) UICollectionView *collectionView;
 @property (nonatomic,assign) CGPoint transitionImageViewCenter;
 @property (nonatomic,strong) UIImageView *imageView;
+@property (nonatomic, strong) UILabel *page_indicator;
+@property (nonatomic, assign) NSUInteger cur_index;
+@property (nonatomic, assign) BOOL response_pan;
 @end
 
 @implementation LWPhotoBrowserController
+- (instancetype)init
+{
+    self = [super init];
+    if (self) {
+        self.showPageIndicator = NO;
+        self.response_pan = NO;
+    }
+    return self;
+}
+- (void)loadView {
+    [super loadView];
+    _imageView = [[UIImageView alloc] init];
+    _imageView.contentMode = UIViewContentModeScaleAspectFill;
+    [self.view addSubview:_imageView];
+    UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
+    layout.minimumLineSpacing = 0;
+    layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
+    layout.sectionInset = UIEdgeInsetsMake(0, 0, 0, 0);
+    layout.minimumInteritemSpacing = 0;
+    _collectionView = [[UICollectionView alloc] initWithFrame:CGRectZero collectionViewLayout:layout];
+    _collectionView.delegate = self;
+    _collectionView.dataSource = self;
+    _collectionView.pagingEnabled = YES;
+    _collectionView.showsHorizontalScrollIndicator = NO;
+    _collectionView.backgroundView = nil;
+    [_collectionView registerClass:[LWPhotoViewCell class] forCellWithReuseIdentifier:NSStringFromClass([LWPhotoViewCell class])];
+    [self.view addSubview:_collectionView];
+    [_collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:_animatedTransition.photoBrowserTransition.transitionImageIndex inSection:0] atScrollPosition:UICollectionViewScrollPositionLeft animated:YES];
+    [self prefersStatusBarHidden];
+    _page_indicator = [UILabel new];
+    _page_indicator.textColor = [UIColor whiteColor];
+    _page_indicator.font = [UIFont systemFontOfSize:15.0];
+    _page_indicator.textAlignment = NSTextAlignmentCenter;
+    [self.view addSubview:_page_indicator];
+    self.cur_index = 0;
+    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(panAction:)];
+    [self.view addGestureRecognizer:pan];
+}
 - (void)viewWillDisappear:(BOOL)animated {
     [self.navigationController setNavigationBarHidden:NO animated:animated];
     [super viewWillDisappear:animated];
@@ -30,31 +71,16 @@
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor blackColor];
     self.automaticallyAdjustsScrollViewInsets = NO;
-    
-    _imageView = [[UIImageView alloc] init];
-    _imageView.contentMode = UIViewContentModeScaleAspectFill;
-    [self.view addSubview:_imageView];
-    
-    UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
-    layout.minimumLineSpacing = 0;
-    layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
-    layout.sectionInset = UIEdgeInsetsMake(0, 0, 0, 0);
-    layout.minimumInteritemSpacing = 0;
-    _collectionView = [[UICollectionView alloc] initWithFrame:CGRectMake(0, 0, LW_SCREENWIDTH + kBrowserSpace, LW_SCREENHEIGHT) collectionViewLayout:layout];
-    _collectionView.delegate = self;
-    _collectionView.dataSource = self;
-    _collectionView.pagingEnabled = YES;
-    _collectionView.showsHorizontalScrollIndicator = NO;
-    _collectionView.backgroundView = nil;
-    [_collectionView registerClass:[LWPhotoViewCell class] forCellWithReuseIdentifier:NSStringFromClass([LWPhotoViewCell class])];
-    [self.view addSubview:_collectionView];
-    [_collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:_animatedTransition.photoBrowserTransition.transitionImageIndex inSection:0] atScrollPosition:UICollectionViewScrollPositionLeft animated:YES];
-    [self prefersStatusBarHidden];
-    
-    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(panAction:)];
-    [self.view addGestureRecognizer:pan];
+    self.collectionView.frame = CGRectMake(0, 0, LW_SCREENWIDTH + kBrowserSpace, LW_SCREENHEIGHT);
+    self.page_indicator.frame = CGRectMake(0, self.view.bounds.size.height - 30 - 40, self.view.frame.size.width, 30);
+    self.page_indicator.hidden = !self.showPageIndicator;
+    self.cur_index = self.animatedTransition.photoBrowserTransition.transitionImageIndex;
+    [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:self.cur_index inSection:0] atScrollPosition:UICollectionViewScrollPositionCenteredHorizontally animated:NO];
 }
-
+- (void)reload {
+    [self.collectionView reloadData];
+    self.page_indicator.text = [NSString stringWithFormat:@"%d / %d", self.cur_index + 1, self.photosArray.count];
+}
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
     return _photosArray.count;
 }
@@ -74,6 +100,17 @@
     CGFloat offset = _collectionView.contentOffset.x;
     NSInteger index = offset / (LW_SCREENWIDTH + kBrowserSpace);
     [self setupViewControllerProperty:index];
+    if (self.scrollToIndex) {
+        self.scrollToIndex(index);
+    }
+    self.cur_index = index;
+    self.page_indicator.text = [NSString stringWithFormat:@"%d / %d", self.cur_index + 1, self.photosArray.count];
+}
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    //取消单击事件
+    NSIndexPath *indexpath = [NSIndexPath indexPathForItem:self.cur_index inSection:0];
+    LWPhotoViewCell *cell = [self.collectionView cellForItemAtIndexPath:indexpath];
+    [cell.photoZoomView cancelTapEvent];
 }
 - (void)setupViewControllerProperty:(NSInteger)index {
     LWPhotoViewCell *cell = (LWPhotoViewCell *)[_collectionView cellForItemAtIndexPath:[NSIndexPath indexPathForItem:index inSection:0]];
@@ -85,11 +122,13 @@
     _transitionImageViewCenter = _imageView.center;
 }
 - (void)didClickImageView:(NSInteger)index {
-    [self dismissViewControllerAnimated:YES completion:nil];
+    if (!self.response_pan) {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }
 }
 - (void)panAction:(UIPanGestureRecognizer *)gesture {
     CGPoint translation = [gesture translationInView:gesture.view];
-    CGFloat scale = 1- (translation.y / LW_SCREENHEIGHT);
+    CGFloat scale = 1- (fabsf(translation.y) / LW_SCREENHEIGHT);
     scale = scale < 0 ? 0 : scale;
     scale = scale > 1 ? 1 : scale;
     switch (gesture.state) {
@@ -97,6 +136,7 @@
             break;
         case UIGestureRecognizerStateBegan:
         {
+            self.response_pan = YES;
             [self setupViewControllerProperty:_animatedTransition.photoBrowserTransition.transitionImageIndex
              ];
             _collectionView.hidden = YES;
@@ -113,7 +153,7 @@
         case UIGestureRecognizerStateCancelled:
         case UIGestureRecognizerStateEnded:
         {
-            if (scale > 0.95f) {
+            if (scale > 0.8f) {
                 [UIView animateWithDuration:0.2 animations:^{
                     self.imageView.center = self.transitionImageViewCenter;
                     self.imageView.transform = CGAffineTransformMakeScale(1, 1);
@@ -124,6 +164,8 @@
             self.animatedTransition.photoBrowserTransition.transitionImage = self.imageView.image;
             self.animatedTransition.photoBrowserTransition.currentPanGesImageFrame = self.imageView.frame;
             self.animatedTransition.photoBrowserTransition.panGestureRecognizer = nil;
+            self.response_pan = NO;
+            self.collectionView.hidden = NO;
         }
         default:
             break;

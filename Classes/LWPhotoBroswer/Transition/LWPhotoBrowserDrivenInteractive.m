@@ -34,7 +34,7 @@
 }
 - (CGFloat)percentForGesture:(UIPanGestureRecognizer *)gesture {
     CGPoint translation = [gesture translationInView:gesture.view];
-    CGFloat scale = 1- (translation.y / LW_SCREENHEIGHT);
+    CGFloat scale = 1- (fabsf(translation.y) / LW_SCREENHEIGHT);
     scale = scale < 0 ? 0 : scale;
     scale = scale > 1 ? 1 : scale;
     return scale;
@@ -45,22 +45,28 @@
         case UIGestureRecognizerStateBegan:
             break;
         case UIGestureRecognizerStateChanged:
+        {
             [self updateInteractiveTransition:scale];
             [self updateInterPercent:scale];
+        }
             break;
         case UIGestureRecognizerStateEnded:
-            if (scale > 0.95f) {
+        {
+            if (scale > 0.8) {
                 [self cancelInteractiveTransition];
                 [self interPercentCancel];
             }else {
                 [self finishInteractiveTransition];
                 [self interPercentFinish:scale];
             }
+        }
             break;
             
         default:
+        {
             [self cancelInteractiveTransition];
             [self interPercentCancel];
+        }
             break;
     }
 }

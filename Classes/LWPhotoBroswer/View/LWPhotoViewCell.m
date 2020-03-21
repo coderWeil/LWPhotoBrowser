@@ -7,7 +7,6 @@
 //
 
 #import "LWPhotoViewCell.h"
-#import <SDWebImage/UIImageView+WebCache.h>
 
 @interface LWPhotoViewCell ()
 @property (nonatomic,strong) LWPhotoModel *model;
@@ -64,7 +63,8 @@
     if (model.image_url.length > 0) {
         imageURL = model.image_url;
     }
-    [imageView sd_setImageWithURL:[NSURL URLWithString:imageURL] placeholderImage:model.image options:kNilOptions progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
+    
+    [imageView sd_setImageWithURL:[NSURL URLWithString:imageURL] placeholderImage:model.image options:kNilOptions progress:^(NSInteger receivedSize, NSInteger expectedSize) {
         CGFloat progress = receivedSize / (float)expectedSize;
         progress = progress < 0.01 ? 0.01 : progress > 1 ? 1 : progress;
         if (isnan(progress)) {
